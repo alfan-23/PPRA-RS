@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SIM PPRA - Rumah Sakit</title>
     
-    <!-- Pustaka Eksternal -->
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -37,7 +36,6 @@
 
     <div id="main-app" class="flex flex-col h-full w-full overflow-y-auto pb-20">
         
-        <!-- HEADER UTAMA -->
         <header class="bg-slate-900 text-white py-6 px-4 shadow-md no-print border-b-4 border-indigo-500 sticky top-0 z-40">
             <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="flex flex-col">
@@ -55,7 +53,6 @@
             </div>
         </header>
 
-        <!-- ==================== TAB 0: PENJELASAN ==================== -->
         <main id="tab-penjelasan" class="max-w-5xl mx-auto px-4 py-8 main-content block">
             <div class="bg-white rounded-xl shadow-md p-8 border border-slate-200">
                 <h2 class="text-2xl font-bold text-indigo-800 mb-6 border-b pb-2 text-center md:text-left">Siklus Evaluasi PPRA Terpadu</h2>
@@ -73,7 +70,6 @@
                     </div>
                 </div>
 
-                <!-- BLOK METODOLOGI BARU YANG DIPADATKAN -->
                 <div class="mb-8">
                     <h3 class="text-lg font-bold text-slate-800 mb-4">Metodologi & Pengambilan Data (Standar KPRA)</h3>
                     
@@ -118,7 +114,6 @@
             </div>
         </main>
 
-        <!-- ==================== TAB 1: KUALITAS GYSSENS ==================== -->
         <main id="tab-kualitas" class="max-w-7xl w-full mx-auto px-4 py-6 hidden main-content">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b pb-4">
                 <div>
@@ -209,7 +204,6 @@
             </div>
         </main>
 
-        <!-- ==================== TAB 2: KUANTITAS DDD ==================== -->
         <main id="tab-kuantitas" class="max-w-7xl w-full mx-auto px-4 py-6 hidden main-content">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b pb-4">
                 <div>
@@ -283,7 +277,6 @@
             </div>
         </main>
 
-        <!-- ==================== TAB 3: POA ==================== -->
         <main id="tab-poa" class="max-w-7xl w-full mx-auto px-4 py-6 hidden main-content">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b pb-4">
                 <div><h2 class="text-2xl font-bold text-slate-800 uppercase tracking-tight">3. Plan of Action (Intervensi)</h2></div>
@@ -344,9 +337,26 @@
         </main>
     </div>
 
-    <!-- SCRIPT UTAMA -->
     <script>
-        const apiKey = ""; 
+        // --- INTEGRASI DASHBOARD SEHATI AI ---
+        let apiKey = new URLSearchParams(window.location.search).get('key') || "";
+        let aiModel = new URLSearchParams(window.location.search).get('model') || "gemini-2.5-flash";
+        let systemContext = "";
+
+        window.addEventListener('message', (event) => {
+            if (!event.data || !event.data.type) return;
+            if (event.data.type === 'UPDATE_CONFIG') {
+                apiKey = event.data.key;
+                if(event.data.model) aiModel = event.data.model;
+                if(event.data.contextReference) systemContext = event.data.contextReference;
+            }
+            if (event.data.type === 'STOP_RETRY') {
+                alert("Sistem AI Dihentikan Sementara: Semua Slot API Key gagal. Periksa limit/kuota di Dashboard.");
+            }
+        });
+        window.parent.postMessage({ type: 'REQUEST_CONFIG' }, '*');
+        // --------------------------------------
+
         let kualitasRecords = [];
         let kuantitasRecords = [];
         let poaRecords = [];
@@ -437,13 +447,15 @@
             container.classList.remove('hidden');
             container.innerHTML = `<div class="flex items-center gap-2"><div class="dot-flashing !bg-indigo-500 before:!bg-indigo-500 after:!bg-indigo-500"></div> <span class="animate-pulse font-bold text-indigo-700">Menganalisis literatur medis...</span></div>`;
             
-            const prompt = `Evaluasi peresepan RS. Diagnosa: ${diag}. Obat: ${ab}.
+            let prompt = `Evaluasi peresepan RS. Diagnosa: ${diag}. Obat: ${ab}.
 Keluarkan HANYA JSON: 
 {
   "analisis": "penjelasan klinis...", 
   "saran_gyssens": "Kategori IVA"
 }
 Pilih 'saran_gyssens' dari: Kategori 0, Kategori I, Kategori IIA, Kategori IIB, Kategori IIC, Kategori IIIA, Kategori IIIB, Kategori IVA, Kategori IVB, Kategori IVC, Kategori IVD, Kategori V, Kategori VI.`;
+
+            if (systemContext) prompt = `REFERENSI ATURAN (Patuhi jika relevan):\n${systemContext}\n\nTUGAS:\n${prompt}`;
             
             try {
                 let jsonResult = null;
@@ -455,7 +467,7 @@ Pilih 'saran_gyssens' dari: Kategori 0, Kategori I, Kategori IIA, Kategori IIB, 
                     };
                     await new Promise(r => setTimeout(r, 1000));
                 } else {
-                    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, { 
+                    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel}:generateContent?key=${apiKey}`, { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json' }, 
                         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" }}) 
@@ -483,8 +495,12 @@ Pilih 'saran_gyssens' dari: Kategori 0, Kategori I, Kategori IIA, Kategori IIB, 
                     sel.classList.add('bg-green-200', 'text-green-800'); 
                     setTimeout(() => sel.classList.remove('bg-green-200', 'text-green-800'), 1500);
                 }
+                
+                window.parent.postMessage({ type: 'API_SUCCESS' }, '*');
+                
             } catch (e) { 
-                container.innerHTML = `<span class="text-rose-600 font-bold">Gagal AI. Cek koneksi atau jalankan secara manual.</span>`; 
+                window.parent.postMessage({ type: 'API_ERROR', code: e.message }, '*');
+                container.innerHTML = `<span class="text-rose-600 font-bold">Gagal/Limit API. Sedang memutar ke kunci cadangan... Silakan coba klik lagi dalam 3 detik.</span>`; 
             }
         }
 
@@ -637,7 +653,9 @@ Pilih 'saran_gyssens' dari: Kategori 0, Kategori I, Kategori IIA, Kategori IIB, 
             container.classList.remove('hidden');
             container.innerHTML = `<div class="flex items-center gap-2"><div class="dot-flashing !bg-indigo-500 before:!bg-indigo-500 after:!bg-indigo-500"></div> <span class="animate-pulse font-bold text-indigo-700">AI merumuskan rekomendasi intervensi...</span></div>`;
 
-            const prompt = `Saya memiliki temuan masalah pada Program Pengendalian Resistensi Antimikroba (PPRA) di Rumah Sakit:\nMasalah: "${masalah}"\n\nBerikan rekomendasi intervensi. Keluarkan hasil HANYA dalam format JSON dengan skema:\n{\n  "alasan": "alasan pemilihan intervensi",\n  "jenis_intervensi": "pilih salah satu dari: Edukasi / Sosialisasi, De-Eskalasi / Ganti Obat, Restriksi / Kunci Resep, Teguran ke DPJP",\n  "detail_tindakan": "tindakan spesifik dan langkah-langkahnya (maksimal 2 kalimat)"\n}`;
+            let prompt = `Saya memiliki temuan masalah pada Program Pengendalian Resistensi Antimikroba (PPRA) di Rumah Sakit:\nMasalah: "${masalah}"\n\nBerikan rekomendasi intervensi. Keluarkan hasil HANYA dalam format JSON dengan skema:\n{\n  "alasan": "alasan pemilihan intervensi",\n  "jenis_intervensi": "pilih salah satu dari: Edukasi / Sosialisasi, De-Eskalasi / Ganti Obat, Restriksi / Kunci Resep, Teguran ke DPJP",\n  "detail_tindakan": "tindakan spesifik dan langkah-langkahnya (maksimal 2 kalimat)"\n}`;
+
+            if (systemContext) prompt = `REFERENSI ATURAN:\n${systemContext}\n\nTUGAS:\n${prompt}`;
 
             try {
                 let jsonResult = null;
@@ -670,7 +688,7 @@ Pilih 'saran_gyssens' dari: Kategori 0, Kategori I, Kategori IIA, Kategori IIB, 
                     };
                     await new Promise(r => setTimeout(r, 1000));
                 } else {
-                    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel}:generateContent?key=${apiKey}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" }})
@@ -705,9 +723,12 @@ Pilih 'saran_gyssens' dari: Kategori 0, Kategori I, Kategori IIA, Kategori IIB, 
                     txt.classList.add('bg-green-200', 'text-green-800');
                     setTimeout(() => txt.classList.remove('bg-green-200', 'text-green-800'), 1500);
                 }
+                
+                window.parent.postMessage({ type: 'API_SUCCESS' }, '*'); 
 
             } catch (e) {
-                container.innerHTML = `<span class="text-rose-600 font-bold">Gagal terhubung ke AI. Silakan ketik detail secara manual.</span>`;
+                window.parent.postMessage({ type: 'API_ERROR', code: e.message }, '*'); 
+                container.innerHTML = `<span class="text-rose-600 font-bold">Gagal/Limit API. Sedang memutar ke kunci cadangan... Silakan coba klik lagi dalam 3 detik.</span>`;
             }
         }
 
