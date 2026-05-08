@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIM PPRA - Rumah Sakit</title>
+    
+    <!-- Pustaka Eksternal -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        
+        .tab-active { border-bottom: 4px solid #4f46e5; color: #3730a3; font-weight: 700; }
+        .tab-inactive { border-bottom: 4px solid transparent; color: #64748b; }
+        .tab-inactive:hover { color: #334155; border-bottom: 4px solid #e2e8f0; }
+        
+        [contenteditable]:empty:before { content: attr(data-placeholder); color: #94a3b8; font-style: italic; }
+        
+        @media print { 
+            body { background-color: white !important; } 
+            .no-print { display: none !important; } 
+            .print-shadow-none { box-shadow: none !important; border: 1px solid #e2e8f0 !important; } 
+        }
+        
+        .dot-flashing { position: relative; width: 6px; height: 6px; border-radius: 5px; background-color: #4f46e5; color: #4f46e5; animation: dot-flashing 1s infinite linear alternate; animation-delay: .5s; }
+        .dot-flashing::before, .dot-flashing::after { content: ''; display: inline-block; position: absolute; top: 0; }
+        .dot-flashing::before { left: -10px; width: 6px; height: 6px; border-radius: 5px; background-color: #4f46e5; color: #4f46e5; animation: dot-flashing 1s infinite linear alternate; animation-delay: 0s; }
+        .dot-flashing::after { left: 10px; width: 6px; height: 6px; border-radius: 5px; background-color: #4f46e5; color: #4f46e5; animation: dot-flashing 1s infinite linear alternate; animation-delay: 1s; }
+        @keyframes dot-flashing { 0% { background-color: #4f46e5; } 50%, 100% { background-color: #ebe6ff; } }
+    </style>
+</head>
+<body class="text-slate-800 antialiased h-screen overflow-hidden flex flex-col">
+
+    <div id="main-app" class="flex flex-col h-full w-full overflow-y-auto pb-20">
+        
+        <!-- HEADER UTAMA -->
+        <header class="bg-slate-900 text-white py-6 px-4 shadow-md no-print border-b-4 border-indigo-500 sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex flex-col">
+                    <h1 class="text-2xl font-extrabold text-indigo-400">SIM-PPRA Rumah Sakit</h1>
+                    <div class="flex items-center gap-2 mt-2">
+                        <input type="text" id="facility-name" class="bg-slate-800 border border-slate-700 text-xs px-2 py-1 rounded text-white outline-none focus:border-indigo-400" placeholder="Ketik Nama Rumah Sakit..." value="RSUD ">
+                    </div>
+                </div>
+                <div class="flex overflow-x-auto gap-1 bg-slate-800 p-1 rounded-lg">
+                    <button onclick="switchTab('penjelasan')" id="btn-tab-penjelasan" class="py-2 px-4 focus:outline-none transition-all tab-active text-xs font-semibold rounded hover:bg-slate-700 hover:text-white">Panduan</button>
+                    <button onclick="switchTab('kualitas')" id="btn-tab-kualitas" class="py-2 px-4 focus:outline-none transition-all tab-inactive text-xs font-semibold rounded hover:bg-slate-700 hover:text-white">1. Kualitas (Gyssens)</button>
+                    <button onclick="switchTab('kuantitas')" id="btn-tab-kuantitas" class="py-2 px-4 focus:outline-none transition-all tab-inactive text-xs font-semibold rounded hover:bg-slate-700 hover:text-white">2. Kuantitas (DDD)</button>
+                    <button onclick="switchTab('poa')" id="btn-tab-poa" class="py-2 px-4 focus:outline-none transition-all tab-inactive text-xs font-semibold rounded hover:bg-slate-700 hover:text-white">3. Intervensi (PoA)</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- ==================== TAB 0: PENJELASAN ==================== -->
+        <main id="tab-penjelasan" class="max-w-5xl mx-auto px-4 py-8 main-content block">
+            <div class="bg-white rounded-xl shadow-md p-8 border border-slate-200">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-6 border-b pb-2 text-center md:text-left">Siklus Evaluasi PPRA Terpadu</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 text-center text-sm">
+                    <div class="p-4 bg-slate-50 rounded-lg border border-slate-200 relative">
+                        <span class="block text-3xl mb-2">🩺</span><h3 class="font-bold text-slate-800">1. Audit Kualitas</h3><p class="text-slate-500 mt-1 text-[11px] leading-tight">Menilai kesesuaian resep (Gyssens) dengan saran AI otomatis.</p>
+                        <div class="hidden md:block absolute -right-3 top-1/2 transform -translate-y-1/2 text-slate-300">▶</div>
+                    </div>
+                    <div class="p-4 bg-slate-50 rounded-lg border border-slate-200 relative">
+                        <span class="block text-3xl mb-2">📊</span><h3 class="font-bold text-slate-800">2. Audit Kuantitas</h3><p class="text-slate-500 mt-1 text-[11px] leading-tight">Kalkulator otomatis konsumsi AB (DDD WHO).</p>
+                        <div class="hidden md:block absolute -right-3 top-1/2 transform -translate-y-1/2 text-slate-300">▶</div>
+                    </div>
+                    <div class="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                        <span class="block text-3xl mb-2">🎯</span><h3 class="font-bold text-indigo-800">3. Intervensi (PoA)</h3><p class="text-indigo-600 mt-1 text-[11px] leading-tight">Tindak lanjut edukasi, restriksi, dan perbaikan klinis.</p>
+                    </div>
+                </div>
+
+                <!-- BLOK METODOLOGI BARU YANG DIPADATKAN -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-bold text-slate-800 mb-4">Metodologi & Pengambilan Data (Standar KPRA)</h3>
+                    
+                    <div class="bg-indigo-50 border border-indigo-100 p-5 rounded-xl mb-4">
+                        <h4 class="font-bold text-indigo-800 mb-2 flex items-center gap-2"><span>🎯</span> Penentuan Prioritas Antibiotik (Target Audit)</h4>
+                        <p class="text-xs text-slate-700 leading-relaxed">Audit Gyssens tidak dilakukan untuk semua antibiotik. Tentukan target evaluasi berdasarkan:</p>
+                        <ul class="text-[11px] text-slate-700 list-disc pl-5 mt-1 font-medium space-y-1">
+                            <li><strong>Top 10 Pemakaian Tertinggi:</strong> Dilihat dari hasil DDD bulanan tertinggi.</li>
+                            <li><strong>Kriteria AWaRe WHO:</strong> Memprioritaskan golongan <em>Watch</em> & <em>Reserve</em> (misal: Meropenem, Levofloxacin).</li>
+                            <li><strong>High Cost:</strong> Antibiotik yang menyedot biaya/anggaran tertinggi di RS.</li>
+                            <li><strong>Antibiogram:</strong> Antibiotik yang sensitivitasnya mulai menurun berdasarkan data lab Mikrobiologi RS.</li>
+                        </ul>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="border border-slate-200 bg-white p-5 rounded-xl shadow-sm">
+                            <h4 class="font-bold text-slate-800 flex items-center gap-2 mb-2"><span>📊</span> 1. Kuantitas (DDD)</h4>
+                            <ul class="text-[11px] text-slate-600 list-disc pl-4 space-y-1.5">
+                                <li><strong>Metode:</strong> Total Populasi (Agregat Sekunder).</li>
+                                <li><strong>Rentang Waktu:</strong> Dihitung rutin setiap <strong>1 Bulan</strong>.</li>
+                                <li><strong>Pelaksanaan:</strong> Tarik total jumlah pemakaian AB target dari SIMRS/Farmasi lalu bagi dengan Lama Hari Rawat (LOS) di periode tersebut. Tidak perlu melihat RM satu per satu.</li>
+                            </ul>
+                        </div>
+                        <div class="border border-slate-200 bg-white p-5 rounded-xl shadow-sm">
+                            <h4 class="font-bold text-slate-800 flex items-center gap-2 mb-2"><span>🩺</span> 2. Kualitas (Gyssens)</h4>
+                            <ul class="text-[11px] text-slate-600 list-disc pl-4 space-y-1.5">
+                                <li><strong>Metode:</strong> Retrospektif dengan <em>Purposive / Consecutive Sampling</em> (Bukan rumus Slovin).</li>
+                                <li><strong>Rentang Waktu:</strong> Dievaluasi per <strong>Triwulan (3 Bulan)</strong> atau Semester.</li>
+                                <li><strong>Pelaksanaan:</strong> Ambil <strong>minimal 50 Lembar RM</strong> pasien pulang yang menggunakan AB prioritas. Jika kasus < 50, ambil semuanya (Total Sampling).</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-indigo-50 p-6 rounded-xl border-l-4 border-indigo-500 space-y-4">
+                    <h4 class="font-bold text-indigo-900">Adaptasi Cerdas Fasilitas:</h4>
+                    <p class="text-sm text-slate-700 leading-relaxed">Mode RUMAH SAKIT aktif. Kualitas menggunakan Kategori Gyssens (0-VI) yang sesuai standar KPRA. Kuantitas menggunakan rumus baku DDD (Defined Daily Dose) WHO untuk memantau konsumsi gram antibiotik per 100 hari rawat.</p>
+                </div>
+                <div class="mt-8 flex justify-center">
+                    <button onclick="switchTab('kualitas')" class="bg-slate-800 hover:bg-slate-900 text-white px-8 py-3 rounded-lg font-bold shadow-lg transition-all uppercase tracking-widest text-sm">Mulai Evaluasi PPRA &rarr;</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- ==================== TAB 1: KUALITAS GYSSENS ==================== -->
+        <main id="tab-kualitas" class="max-w-7xl w-full mx-auto px-4 py-6 hidden main-content">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b pb-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800 uppercase tracking-tight">1. Audit Kualitas Peresepan</h2>
+                    <p class="text-sm text-slate-500 italic">Evaluasi Kualitas Penggunaan Antibiotik (Metode Gyssens).</p>
+                </div>
+                <button onclick="downloadPPRAPDF()" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 text-xs font-extrabold rounded-full shadow-md transition-all flex items-center justify-center gap-2 uppercase tracking-tight">
+                    🖨️ Cetak Laporan Lengkap
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-slate-200 xl:col-span-1 h-fit sticky top-24 no-print">
+                    <h2 class="font-bold text-slate-800 mb-4 border-b pb-2">Entry Data Pasien</h2>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">No. RM</label><input type="text" id="kual-rm" class="w-full border border-slate-300 rounded p-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-400"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Unit / Bangsal</label><input type="text" id="kual-unit" class="w-full border border-slate-300 rounded p-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-400"></div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Diagnosa Infeksi</label>
+                            <input list="diag-list" id="kual-diag" class="w-full border border-slate-300 rounded p-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Ketik bebas atau pilih diagnosa...">
+                            <datalist id="diag-list">
+                                <option value="Pneumonia Komunitas (CAP)"></option>
+                                <option value="Pneumonia Nosokomial (HAP/VAP)"></option>
+                                <option value="Sepsis / Syok Sepsis"></option>
+                                <option value="Infeksi Saluran Kemih (ISK)"></option>
+                                <option value="Infeksi Jaringan Lunak (SSTI)"></option>
+                                <option value="Profilaksis Bedah"></option>
+                            </datalist>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Antibiotik yang Diberikan</label>
+                            <input list="ab-list" id="kual-ab" class="w-full border border-slate-300 rounded p-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Ketik atau pilih antibiotik & dosis...">
+                            <datalist id="ab-list">
+                                <option value="Ceftriaxone"></option>
+                                <option value="Levofloxacin"></option>
+                                <option value="Meropenem"></option>
+                                <option value="Metronidazole"></option>
+                                <option value="Cefotaxime"></option>
+                            </datalist>
+                        </div>
+                        <div class="mt-2">
+                            <button onclick="askAIPeresepan()" class="w-full text-xs text-indigo-700 font-bold hover:text-white hover:bg-indigo-600 bg-indigo-100 px-3 py-2.5 rounded-lg transition-all border border-indigo-200 shadow-sm active:scale-95 flex items-center justify-center gap-2">💡 Minta AI Tentukan Kategori Otomatis</button>
+                            <div id="ai-kualitas-container" class="hidden mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-700 shadow-inner"></div>
+                        </div>
+                        <div class="space-y-3 bg-indigo-50 p-4 rounded-lg border border-indigo-100 mt-4">
+                            <h3 class="text-xs font-bold text-indigo-800 border-b border-indigo-200 pb-1 mb-2">Penetapan Kategori Gyssens</h3>
+                            <div>
+                                <select id="rs-gyssens-cat" class="w-full border border-slate-300 rounded p-2 text-xs bg-white outline-none focus:ring-1 focus:ring-indigo-400 font-medium text-slate-700 cursor-pointer transition-colors duration-500">
+                                    <option value="Kategori 0 (Tepat & Rasional)">Kategori 0 - Tepat dan rasional</option>
+                                    <option value="Kategori I (Waktu tdk tepat)">Kategori I - Waktu profilaksis tidak tepat</option>
+                                    <option value="Kategori IIA (Dosis tdk tepat)">Kategori IIA - Dosis tidak tepat</option>
+                                    <option value="Kategori IIB (Interval tdk tepat)">Kategori IIB - Interval tidak tepat</option>
+                                    <option value="Kategori IIC (Rute tdk tepat)">Kategori IIC - Rute tidak tepat</option>
+                                    <option value="Kategori IIIA (Durasi terlalu lama)">Kategori IIIA - Durasi terlalu lama</option>
+                                    <option value="Kategori IIIB (Durasi terlalu singkat)">Kategori IIIB - Durasi terlalu singkat</option>
+                                    <option value="Kategori IVA (Ada alternatif lebih efektif)">Kategori IVA - Ada alternatif lebih efektif</option>
+                                    <option value="Kategori IVB (Ada alternatif lebih aman)">Kategori IVB - Ada alternatif lebih aman</option>
+                                    <option value="Kategori IVC (Ada alternatif lebih murah)">Kategori IVC - Ada alternatif lebih murah</option>
+                                    <option value="Kategori IVD (Ada alternatif spektrum sempit)">Kategori IVD - Ada alternatif spektrum sempit</option>
+                                    <option value="Kategori V (Tidak ada indikasi)">Kategori V - Tidak ada indikasi antibiotik</option>
+                                    <option value="Kategori VI (Data tdk lengkap)">Kategori VI - Data RM tidak lengkap</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button onclick="addKualitasRecord()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-lg transition-all shadow-md active:scale-95 text-sm uppercase">Simpan ke Daftar Audit</button>
+                    </div>
+                </div>
+                <div class="xl:col-span-2 w-full">
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-slate-200 mb-6 overflow-hidden flex flex-col print-shadow-none">
+                        <table class="w-full text-sm text-left border-collapse">
+                            <thead class="bg-slate-100 text-slate-700 border-b-2 border-slate-300 text-[10px] uppercase tracking-wider">
+                                <tr>
+                                    <th class="p-3 border border-slate-200">No. RM & Bangsal</th>
+                                    <th class="p-3 border border-slate-200">Diagnosa</th>
+                                    <th class="p-3 border border-slate-200">Terapi AB</th>
+                                    <th class="p-3 border border-slate-200 text-center font-bold bg-indigo-50">Kategori Gyssens</th>
+                                    <th class="p-3 border border-slate-200 text-center no-print">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kualitas-table-body" class="divide-y divide-slate-200">
+                                <tr id="kualitas-empty"><td colspan="5" class="p-12 text-center text-slate-400 italic">Belum ada resep yang diaudit.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ==================== TAB 2: KUANTITAS DDD ==================== -->
+        <main id="tab-kuantitas" class="max-w-7xl w-full mx-auto px-4 py-6 hidden main-content">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b pb-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800 uppercase tracking-tight">2. Audit Kuantitas (DDD)</h2>
+                    <p class="text-sm text-slate-500 italic">Kalkulator Defined Daily Dose (DDD) per 100 hari rawat pasien.</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-slate-200 h-fit no-print">
+                    <h2 class="font-bold text-slate-800 mb-4 border-b pb-2">Kertas Kerja Perhitungan DDD</h2>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Bulan/Tahun</label><input type="month" id="kuan-bulan" class="w-full border border-slate-300 rounded p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-400"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Unit/Bangsal</label><input type="text" id="kuan-unit" class="w-full border border-slate-300 rounded p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Misal: ICU"></div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Pilih Antibiotik Target</label>
+                            <select id="kuan-ab" class="w-full border border-slate-300 rounded p-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer" onchange="updateDDD()">
+                                <option value="" data-ddd="">-- Pilih Antibiotik --</option>
+                                <optgroup label="Golongan Penicillin">
+                                    <option value="Amoxicillin (Oral)" data-ddd="1.5">Amoxicillin (Oral) - Std: 1.5g</option>
+                                    <option value="Amoxicillin (Injeksi)" data-ddd="3">Amoxicillin (Injeksi) - Std: 3g</option>
+                                    <option value="Amoxicillin+Clavulanate (Oral)" data-ddd="1.5">Amoxicillin+Clavulanate (Oral) - Std: 1.5g</option>
+                                    <option value="Amoxicillin+Clavulanate (Injeksi)" data-ddd="3">Amoxicillin+Clavulanate (Injeksi) - Std: 3g</option>
+                                </optgroup>
+                                <optgroup label="Golongan Cephalosporin">
+                                    <option value="Ceftriaxone (Injeksi)" data-ddd="2">Ceftriaxone (Injeksi) - Std: 2g</option>
+                                    <option value="Cefotaxime (Injeksi)" data-ddd="4">Cefotaxime (Injeksi) - Std: 4g</option>
+                                </optgroup>
+                                <optgroup label="Golongan Fluoroquinolone & Lainnya">
+                                    <option value="Levofloxacin (Oral/Injeksi)" data-ddd="0.5">Levofloxacin (Oral/Injeksi) - Std: 0.5g</option>
+                                    <option value="Meropenem (Injeksi)" data-ddd="3">Meropenem (Injeksi) - Std: 3g</option>
+                                    <option value="Kustom" data-ddd="" class="font-bold text-indigo-700">➜ Kustom (Ketik Manual)</option>
+                                </optgroup>
+                            </select>
+                            <input type="text" id="kuan-ab-custom" class="w-full border border-slate-300 rounded p-2 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-400 mt-2 hidden" placeholder="Ketik nama antibiotik...">
+                        </div>
+                        <div class="space-y-3 bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                            <p class="text-[10px] font-bold text-indigo-800 border-b border-indigo-200 pb-1 mb-2">Kalkulator Gram & DDD</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1" title="Jumlah Ampul/Vial/Tablet">Jml Kemasan</label><input type="number" id="kuan-jml-item" class="w-full border border-slate-300 rounded p-1.5 text-sm outline-none" placeholder="Cth: 50"></div>
+                                <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1" title="Kekuatan per sediaan dalam Gram (misal 500mg = 0.5g)">Dosis (Gram)</label><input type="number" step="0.01" id="kuan-dosis-item" class="w-full border border-slate-300 rounded p-1.5 text-sm outline-none" placeholder="Cth: 1"></div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Standar WHO</label><input type="number" step="0.01" id="kuan-standar" class="w-full border border-slate-300 rounded p-1.5 text-sm bg-slate-200 cursor-not-allowed" readonly></div>
+                                <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1" title="Length of Stay (Total Hari Rawat Pasien di unit tersebut)">Lama Rawat (LOS)</label><input type="number" id="kuan-los" class="w-full border border-slate-300 rounded p-1.5 text-sm outline-none" placeholder="Cth: 300"></div>
+                            </div>
+                        </div>
+                        <button onclick="addKuantitasRecord()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-lg shadow-md active:scale-95 text-sm uppercase">Hitung & Simpan Data</button>
+                    </div>
+                </div>
+                <div class="md:col-span-2 w-full">
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-slate-200 print-shadow-none">
+                        <table class="w-full text-sm text-left border-collapse">
+                            <thead class="bg-slate-100 text-slate-700 border-b-2 border-slate-300 text-[10px] uppercase tracking-wider">
+                                <tr>
+                                    <th class="p-3 border border-slate-200">Periode & Unit</th>
+                                    <th class="p-3 border border-slate-200">Antibiotik Target</th>
+                                    <th class="p-3 border border-slate-200">Data Kalkulasi</th>
+                                    <th class="p-3 border border-slate-200 text-center font-bold bg-indigo-50">Nilai DDD</th>
+                                    <th class="p-3 border border-slate-200 text-center no-print">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kuantitas-table-body" class="divide-y divide-slate-200">
+                                <tr id="kuantitas-empty"><td colspan="5" class="p-12 text-center text-slate-400 italic">Belum ada data kertas kerja.</td></tr>
+                            </tbody>
+                        </table>
+                        <p class="text-[10px] text-slate-400 mt-4 italic">*Rumus Baku DDD: ((Total Kemasan &times; Dosis) / Standar DDD WHO) / Total LOS &times; 100.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ==================== TAB 3: POA ==================== -->
+        <main id="tab-poa" class="max-w-7xl w-full mx-auto px-4 py-6 hidden main-content">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b pb-4">
+                <div><h2 class="text-2xl font-bold text-slate-800 uppercase tracking-tight">3. Plan of Action (Intervensi)</h2></div>
+            </div>
+            <div class="bg-indigo-50 border-l-4 border-indigo-500 rounded-xl shadow-sm p-6 mb-6 no-print">
+                <h3 class="text-sm font-bold text-indigo-800 mb-3">Tarik Temuan Audit Bermasalah</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Pilih Temuan dari Tab 1 & 2</label>
+                            <select id="poa-masalah-select" class="w-full border border-slate-300 rounded p-2 text-sm bg-white outline-none focus:ring-1 focus:ring-indigo-400 cursor-pointer shadow-sm" onchange="checkPoAMasalah()">
+                                <option value="">-- Pilih Temuan Audit --</option>
+                                <option value="Kustom" class="font-bold text-indigo-700">➜ Ketik Manual Temuan Lainnya...</option>
+                            </select>
+                            <input type="text" id="poa-masalah-custom" class="w-full border border-slate-300 rounded p-2 text-sm bg-white outline-none mt-2 hidden" placeholder="Ketik temuan manual di sini...">
+                        </div>
+                        <button onclick="askAIPoA()" class="w-full text-xs text-indigo-700 font-bold hover:text-white hover:bg-indigo-600 bg-indigo-100 px-3 py-2.5 rounded-lg transition-all border border-indigo-200 shadow-sm active:scale-95 flex items-center justify-center gap-2">
+                            💡 Minta Saran Intervensi & Detail Tindakan (AI)
+                        </button>
+                        <div id="ai-poa-container" class="hidden p-3 bg-white border border-indigo-100 rounded-lg text-xs leading-relaxed text-slate-700 shadow-sm"></div>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Jenis Intervensi PPRA</label>
+                            <select id="poa-intervensi" class="w-full border border-slate-300 rounded p-2 text-sm bg-white outline-none shadow-sm transition-colors duration-500 cursor-pointer">
+                                <option value="Edukasi / Sosialisasi">Edukasi / Sosialisasi</option>
+                                <option value="De-Eskalasi / Ganti Obat">De-Eskalasi / Ganti Obat</option>
+                                <option value="Restriksi / Kunci Resep">Restriksi Peresepan</option>
+                                <option value="Teguran ke DPJP">Teguran ke DPJP</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Saran / Detail Tindakan</label>
+                            <textarea id="poa-detail" rows="2" class="w-full border border-slate-300 rounded p-2 text-sm bg-white outline-none shadow-sm transition-colors duration-500" placeholder="Ketik manual atau klik AI di samping untuk saran..."></textarea>
+                        </div>
+                        <button onclick="addPoARecord()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded shadow-md uppercase text-sm mt-2 transition-all">Simpan ke PoA</button>
+                    </div>
+                </div>
+            </div>
+            <div class="overflow-x-auto w-full bg-white rounded-xl shadow-sm border border-slate-200 print-shadow-none">
+                <table class="w-full text-xs text-left border-collapse border border-slate-300">
+                    <thead class="bg-slate-800 text-white text-[10px] uppercase tracking-widest">
+                        <tr>
+                            <th class="p-3 border border-slate-600">Masalah / Temuan Audit Terpilih</th>
+                            <th class="p-3 border border-slate-600">Intervensi</th>
+                            <th class="p-3 border border-slate-600">Detail Tindakan</th>
+                            <th class="p-3 border border-slate-600">Target Waktu</th>
+                            <th class="p-3 border border-slate-600">PIC</th>
+                            <th class="p-3 border border-slate-600 text-center">Status</th>
+                            <th class="p-3 border border-slate-600 text-center no-print">Hapus</th>
+                        </tr>
+                    </thead>
+                    <tbody id="poa-table-body" class="divide-y divide-slate-200 bg-white">
+                        <tr id="poa-empty"><td colspan="7" class="p-12 text-center text-slate-400 italic">Lembar PoA kosong.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- SCRIPT UTAMA -->
+    <script>
+        const apiKey = ""; 
+        let kualitasRecords = [];
+        let kuantitasRecords = [];
+        let poaRecords = [];
+        
+        function escapeJS(str) { 
+            if (!str) return '';
+            return String(str)
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/"/g, '&quot;')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, ''); 
+        }
+
+        // PENTING: Perbaikan Regex JSON agar tidak konflik
+        function cleanJSON(text) { 
+            if (!text) return '';
+            return text.replace(new RegExp('```json', 'gi'), '').replace(new RegExp('```', 'g'), '').trim(); 
+        }
+
+        async function fetchWithRetry(url, options, retries = 5, backoff = 1000) {
+            for (let i = 0; i < retries; i++) {
+                try { 
+                    const res = await fetch(url, options); 
+                    if (res.ok) return res; 
+                } catch (e) {}
+                await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
+            } 
+            throw new Error("Gagal API");
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('main.main-content').forEach(m => m.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            ['btn-tab-penjelasan', 'btn-tab-kualitas', 'btn-tab-kuantitas', 'btn-tab-poa'].forEach(b => {
+                const el = document.getElementById(b);
+                if (el) { 
+                    el.className = (b === `btn-tab-${tabId}`) 
+                    ? 'py-2 px-4 focus:outline-none transition-all tab-active text-xs font-bold rounded hover:bg-slate-700 hover:text-white' 
+                    : 'py-2 px-4 focus:outline-none transition-all tab-inactive text-xs font-semibold rounded hover:bg-slate-700 hover:text-white'; 
+                }
+            });
+            window.scrollTo(0,0);
+        }
+
+        function refreshPoATemuan() {
+            const select = document.getElementById('poa-masalah-select');
+            if(!select) return;
+            let html = `<option value="">-- Pilih Temuan Audit Bermasalah --</option>`;
+            
+            kualitasRecords.forEach(r => {
+                if(!r.kategori.includes("0 (Tepat")) {
+                    html += `<option value="[Kualitas] RM ${r.rm} (${r.diag}) - ${r.kategori}">[Kualitas] RM ${r.rm} - ${r.kategori}</option>`;
+                }
+            });
+            
+            kuantitasRecords.forEach(r => {
+                if(parseFloat(r.hasil) > 50) {
+                    html += `<option value="[Kuantitas] ${r.bulan} ${r.unit} - ${r.ab} (${r.hasil})">[Kuantitas] ${r.unit} - DDD Tinggi (${r.hasil})</option>`;
+                }
+            });
+            
+            html += `<option value="Kustom" class="font-bold text-indigo-700">➜ Ketik Manual Temuan Lainnya...</option>`;
+            select.innerHTML = html;
+            checkPoAMasalah();
+        }
+
+        function checkPoAMasalah() {
+            const customInput = document.getElementById('poa-masalah-custom');
+            const select = document.getElementById('poa-masalah-select');
+            if (select.value === 'Kustom') {
+                customInput.classList.remove('hidden');
+            } else {
+                customInput.classList.add('hidden');
+            }
+        }
+
+        async function askAIPeresepan() {
+            const diag = document.getElementById('kual-diag').value;
+            const ab = document.getElementById('kual-ab').value;
+            
+            if(!diag || !ab) { 
+                alert("Isi Diagnosa dan Obat!"); 
+                return; 
+            }
+            
+            const container = document.getElementById('ai-kualitas-container');
+            container.classList.remove('hidden');
+            container.innerHTML = `<div class="flex items-center gap-2"><div class="dot-flashing !bg-indigo-500 before:!bg-indigo-500 after:!bg-indigo-500"></div> <span class="animate-pulse font-bold text-indigo-700">Menganalisis literatur medis...</span></div>`;
+            
+            const prompt = `Evaluasi peresepan RS. Diagnosa: ${diag}. Obat: ${ab}.
+Keluarkan HANYA JSON: 
+{
+  "analisis": "penjelasan klinis...", 
+  "saran_gyssens": "Kategori IVA"
+}
+Pilih 'saran_gyssens' dari: Kategori 0, Kategori I, Kategori IIA, Kategori IIB, Kategori IIC, Kategori IIIA, Kategori IIIB, Kategori IVA, Kategori IVB, Kategori IVC, Kategori IVD, Kategori V, Kategori VI.`;
+            
+            try {
+                let jsonResult = null;
+                
+                if(!apiKey) {
+                    jsonResult = { 
+                        analisis: "Evaluasi literatur (Simulasi Lokal) menyarankan lini pertama yang lebih spesifik atau de-eskalasi.", 
+                        saran_gyssens: "Kategori IVD" 
+                    };
+                    await new Promise(r => setTimeout(r, 1000));
+                } else {
+                    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" }}) 
+                    });
+                    const data = await response.json(); 
+                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if(!text) throw new Error("No data");
+                    jsonResult = JSON.parse(cleanJSON(text));
+                }
+                
+                container.innerHTML = `<p class="font-bold text-indigo-800 mb-1">Analisis AI:</p>${jsonResult.analisis}`;
+                
+                if(jsonResult.saran_gyssens) {
+                    const sel = document.getElementById('rs-gyssens-cat');
+                    const aiSaran = jsonResult.saran_gyssens.toLowerCase();
+                    
+                    for(let i=0; i<sel.options.length; i++) {
+                        const optVal = sel.options[i].value.toLowerCase();
+                        if (optVal.includes(aiSaran) || aiSaran.includes(optVal.split(' (')[0])) {
+                            sel.selectedIndex = i;
+                            break;
+                        }
+                    }
+                    
+                    sel.classList.add('bg-green-200', 'text-green-800'); 
+                    setTimeout(() => sel.classList.remove('bg-green-200', 'text-green-800'), 1500);
+                }
+            } catch (e) { 
+                container.innerHTML = `<span class="text-rose-600 font-bold">Gagal AI. Cek koneksi atau jalankan secara manual.</span>`; 
+            }
+        }
+
+        function addKualitasRecord() {
+            const rm = document.getElementById('kual-rm').value || '-';
+            const unit = document.getElementById('kual-unit').value || '-';
+            const diag = document.getElementById('kual-diag').value;
+            const ab = document.getElementById('kual-ab').value;
+            
+            if(!diag || !ab) { alert("Isi Diagnosa dan Obat!"); return; }
+            
+            const kategori = document.getElementById('rs-gyssens-cat').value;
+            let colorClass = kategori.includes("0 ") ? "bg-teal-100 text-teal-800" 
+                             : (kategori.includes("VI") || kategori.includes("V ") || kategori.includes("I (") ? "bg-rose-500 text-white" : "bg-amber-100 text-amber-800");
+            
+            kualitasRecords.push({ id: Date.now(), rm, unit, diag, ab, kategori, colorClass });
+            
+            document.getElementById('kual-diag').value = ''; 
+            document.getElementById('kual-ab').value = '';
+            document.getElementById('ai-kualitas-container').classList.add('hidden');
+            
+            renderKualitasTable(); 
+            refreshPoATemuan();
+        }
+
+        function renderKualitasTable() {
+            const tbody = document.getElementById('kualitas-table-body'); 
+            tbody.innerHTML = '';
+            
+            if (!kualitasRecords.length) { 
+                tbody.innerHTML = `<tr id="kualitas-empty"><td colspan="5" class="p-12 text-center text-slate-400 italic">Belum ada resep diaudit.</td></tr>`; 
+                return; 
+            }
+            
+            kualitasRecords.forEach(r => {
+                tbody.innerHTML += `
+                    <tr class="text-[11px] border-b border-slate-200">
+                        <td class="p-3">
+                            <span class="font-bold block">${r.rm}</span>
+                            <span class="text-[9px] text-slate-500">${r.unit}</span>
+                        </td>
+                        <td class="p-3 font-medium">${r.diag}</td>
+                        <td class="p-3 italic text-indigo-700 font-bold">${r.ab}</td>
+                        <td class="p-3 text-center">
+                            <span class="px-2 py-1 rounded text-[10px] font-bold ${r.colorClass}">${r.kategori}</span>
+                        </td>
+                        <td class="p-3 text-center no-print">
+                            <button onclick="deleteKualitas(${r.id})" class="text-rose-500 font-bold hover:underline">Hapus</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        function deleteKualitas(id) { 
+            kualitasRecords = kualitasRecords.filter(r => r.id !== id); 
+            renderKualitasTable(); 
+            refreshPoATemuan(); 
+        }
+
+        function updateDDD() {
+            const select = document.getElementById('kuan-ab'); 
+            const customInput = document.getElementById('kuan-ab-custom'); 
+            const stdInput = document.getElementById('kuan-standar');
+            
+            if (select.value === 'Kustom') { 
+                customInput.classList.remove('hidden'); 
+                stdInput.value = ''; 
+                stdInput.readOnly = false; 
+                stdInput.classList.remove('bg-slate-200'); 
+                stdInput.classList.add('bg-white'); 
+            } else { 
+                customInput.classList.add('hidden'); 
+                const ddd = select.options[select.selectedIndex].getAttribute('data-ddd'); 
+                stdInput.value = ddd || ''; 
+                stdInput.readOnly = true; 
+                stdInput.classList.add('bg-slate-200'); 
+                stdInput.classList.remove('bg-white'); 
+            }
+        }
+
+        function addKuantitasRecord() {
+            const bulan = document.getElementById('kuan-bulan').value || '-'; 
+            const unit = document.getElementById('kuan-unit').value || '-';
+            let ab = document.getElementById('kuan-ab').value === 'Kustom' ? document.getElementById('kuan-ab-custom').value : document.getElementById('kuan-ab').value;
+            
+            if (!ab) { alert("Pilih antibiotik!"); return; }
+            
+            const gram = parseFloat(document.getElementById('kuan-jml-item').value) * parseFloat(document.getElementById('kuan-dosis-item').value);
+            const standar = parseFloat(document.getElementById('kuan-standar').value);
+            const los = parseFloat(document.getElementById('kuan-los').value);
+            
+            if(isNaN(gram) || isNaN(standar) || isNaN(los)) { 
+                alert("Isi nilai kalkulator secara lengkap dan valid!"); 
+                return; 
+            }
+            
+            const ddd = ((gram / standar) / los) * 100;
+            const ket = `Tot Gr: ${gram}g | Std: ${standar}g | LOS: ${los}`;
+            const hasil = `${ddd.toFixed(2)} DDD`;
+            const color = ddd > 50 ? "bg-rose-500 text-white font-bold" : "bg-indigo-100 text-indigo-800 font-bold";
+            
+            kuantitasRecords.push({ id: Date.now(), bulan, unit, ab, ket, hasil, color });
+            
+            document.getElementById('kuan-jml-item').value = ''; 
+            renderKuantitasTable(); 
+            refreshPoATemuan();
+        }
+
+        function renderKuantitasTable() {
+            const tbody = document.getElementById('kuantitas-table-body'); 
+            tbody.innerHTML = '';
+            
+            if (!kuantitasRecords.length) { 
+                tbody.innerHTML = `<tr id="kuantitas-empty"><td colspan="5" class="p-12 text-center text-slate-400 italic">Belum ada data kertas kerja.</td></tr>`; 
+                return; 
+            }
+            
+            kuantitasRecords.forEach(r => {
+                tbody.innerHTML += `
+                    <tr class="text-[11px] border-b border-slate-200">
+                        <td class="p-3">
+                            <span class="font-bold block">${r.bulan}</span>
+                            <span class="text-[9px] text-slate-500">${r.unit}</span>
+                        </td>
+                        <td class="p-3 font-bold text-indigo-700">${r.ab}</td>
+                        <td class="p-3 text-[10px] text-slate-500">${r.ket}</td>
+                        <td class="p-3 text-center">
+                            <span class="px-3 py-1.5 rounded-sm ${r.color} text-[11px]">${r.hasil}</span>
+                        </td>
+                        <td class="p-3 text-center no-print">
+                            <button onclick="deleteKuantitas(${r.id})" class="text-rose-500 font-bold hover:underline">Hapus</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        function deleteKuantitas(id) { 
+            kuantitasRecords = kuantitasRecords.filter(r => r.id !== id); 
+            renderKuantitasTable(); 
+            refreshPoATemuan(); 
+        }
+
+        async function askAIPoA() {
+            const selectEl = document.getElementById('poa-masalah-select');
+            let masalah = selectEl.value === 'Kustom' ? document.getElementById('poa-masalah-custom').value : selectEl.value;
+
+            if(!masalah) { alert("Pilih atau ketik temuan audit terlebih dahulu!"); return; }
+
+            const container = document.getElementById('ai-poa-container');
+            container.classList.remove('hidden');
+            container.innerHTML = `<div class="flex items-center gap-2"><div class="dot-flashing !bg-indigo-500 before:!bg-indigo-500 after:!bg-indigo-500"></div> <span class="animate-pulse font-bold text-indigo-700">AI merumuskan rekomendasi intervensi...</span></div>`;
+
+            const prompt = `Saya memiliki temuan masalah pada Program Pengendalian Resistensi Antimikroba (PPRA) di Rumah Sakit:\nMasalah: "${masalah}"\n\nBerikan rekomendasi intervensi. Keluarkan hasil HANYA dalam format JSON dengan skema:\n{\n  "alasan": "alasan pemilihan intervensi",\n  "jenis_intervensi": "pilih salah satu dari: Edukasi / Sosialisasi, De-Eskalasi / Ganti Obat, Restriksi / Kunci Resep, Teguran ke DPJP",\n  "detail_tindakan": "tindakan spesifik dan langkah-langkahnya (maksimal 2 kalimat)"\n}`;
+
+            try {
+                let jsonResult = null;
+                
+                if(!apiKey) {
+                    let jenis = "Edukasi / Sosialisasi";
+                    let alasan = "Pendekatan edukasi direkomendasikan sebagai langkah awal untuk perbaikan kualitas peresepan.";
+                    let detail = "Lakukan sosialisasi ulang pedoman PPAB kepada DPJP terkait.";
+
+                    const masalahLower = masalah.toLowerCase();
+                    
+                    if (masalahLower.includes("alternatif") || masalahLower.includes("kategori iv") || masalahLower.includes("spektrum")) {
+                        jenis = "De-Eskalasi / Ganti Obat";
+                        alasan = "Terdapat opsi antibiotik yang lebih rasional sesuai PPK (spektrum lebih sempit/lebih aman).";
+                        detail = "Hubungi DPJP untuk mendiskusikan de-eskalasi antibiotik sesuai hasil kultur atau PPAB lokal.";
+                    } else if (masalahLower.includes("tinggi") || masalahLower.includes("kuantitas") || masalahLower.includes("ddd")) {
+                        jenis = "Restriksi / Kunci Resep";
+                        alasan = "Konsumsi antibiotik ini melebihi batas kewajaran (DDD tinggi), berisiko memicu resistensi massal.";
+                        detail = "Terapkan automatic stop order atau wajibkan persetujuan Komite PPRA sebelum peresepan obat ini.";
+                    } else if (masalahLower.includes("tidak lengkap") || masalahLower.includes("kategori vi") || masalahLower.includes("indikasi") || masalahLower.includes("kategori v")) {
+                        jenis = "Teguran ke DPJP";
+                        alasan = "Ketidaklengkapan rekam medis atau peresepan tanpa indikasi merupakan pelanggaran administrasi klinis.";
+                        detail = "Kirimkan surat teguran/klarifikasi tertulis kepada DPJP untuk melengkapi indikasi peresepan di RM.";
+                    }
+
+                    jsonResult = {
+                        alasan: alasan + " (Mode Simulasi Tanpa API Key)",
+                        jenis_intervensi: jenis,
+                        detail_tindakan: detail
+                    };
+                    await new Promise(r => setTimeout(r, 1000));
+                } else {
+                    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" }})
+                    });
+                    const data = await response.json();
+                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if(!text) throw new Error("No data");
+                    jsonResult = JSON.parse(cleanJSON(text));
+                }
+
+                container.innerHTML = `<p class="font-bold text-indigo-800 mb-1">Analisis AI:</p><p>${jsonResult.alasan}</p>`;
+
+                if(jsonResult.jenis_intervensi) {
+                    const sel = document.getElementById('poa-intervensi');
+                    const aiIntv = jsonResult.jenis_intervensi.toLowerCase();
+                    
+                    for (let i = 0; i < sel.options.length; i++) {
+                        const optVal = sel.options[i].value.toLowerCase();
+                        if (optVal.includes(aiIntv) || aiIntv.includes(optVal.split(' /')[0])) {
+                            sel.selectedIndex = i;
+                            break;
+                        }
+                    }
+                    
+                    sel.classList.add('bg-green-200', 'text-green-800');
+                    setTimeout(() => sel.classList.remove('bg-green-200', 'text-green-800'), 1500);
+                }
+
+                if(jsonResult.detail_tindakan) {
+                    const txt = document.getElementById('poa-detail');
+                    txt.value = jsonResult.detail_tindakan;
+                    txt.classList.add('bg-green-200', 'text-green-800');
+                    setTimeout(() => txt.classList.remove('bg-green-200', 'text-green-800'), 1500);
+                }
+
+            } catch (e) {
+                container.innerHTML = `<span class="text-rose-600 font-bold">Gagal terhubung ke AI. Silakan ketik detail secara manual.</span>`;
+            }
+        }
+
+        function addPoARecord() {
+            const selectEl = document.getElementById('poa-masalah-select');
+            let masalah = selectEl.value === 'Kustom' ? document.getElementById('poa-masalah-custom').value : selectEl.value;
+            
+            if(!masalah) { alert("Pilih temuan audit!"); return; }
+            
+            const intervensi = document.getElementById('poa-intervensi').value;
+            const detail = document.getElementById('poa-detail').value;
+            
+            poaRecords.push({ id: Date.now(), masalah, intervensi, detail });
+            
+            selectEl.value = ""; 
+            document.getElementById('poa-masalah-custom').value = ''; 
+            document.getElementById('poa-masalah-custom').classList.add('hidden');
+            document.getElementById('poa-detail').value = '';
+            document.getElementById('ai-poa-container').classList.add('hidden');
+            
+            renderPoATable();
+        }
+
+        function renderPoATable() {
+            const tbody = document.getElementById('poa-table-body'); 
+            tbody.innerHTML = '';
+            
+            if (!poaRecords.length) { 
+                tbody.innerHTML = `<tr id="poa-empty"><td colspan="7" class="p-12 text-center text-slate-400 italic">Lembar PoA kosong.</td></tr>`; 
+                return; 
+            }
+            
+            poaRecords.forEach(r => {
+                tbody.innerHTML += `
+                    <tr class="text-[11px] border-b border-slate-200">
+                        <td class="p-3 bg-slate-50 font-bold text-slate-700">${r.masalah}</td>
+                        <td class="p-3 font-bold text-indigo-600 text-center">${r.intervensi}</td>
+                        <td class="p-3 contenteditable outline-none bg-indigo-50/30" contenteditable="true" data-placeholder="Ketik detail...">${escapeJS(r.detail)}</td>
+                        <td class="p-3 contenteditable outline-none text-center bg-indigo-50/30" contenteditable="true" data-placeholder="Bulan/Tgl"></td>
+                        <td class="p-3 contenteditable outline-none text-center bg-indigo-50/30" contenteditable="true" data-placeholder="Nama PIC"></td>
+                        <td class="p-3 text-center">
+                            <select class="outline-none font-bold text-slate-600 bg-transparent cursor-pointer">
+                                <option>Open</option>
+                                <option>Done</option>
+                            </select>
+                        </td>
+                        <td class="p-3 text-center no-print">
+                            <button onclick="deletePoA(${r.id})" class="text-rose-500 font-bold hover:underline">Hapus</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        function deletePoA(id) { 
+            poaRecords = poaRecords.filter(r => r.id !== id); 
+            renderPoATable(); 
+        }
+
+        function downloadPPRAPDF() {
+            const btn = document.querySelector('button[onclick="downloadPPRAPDF()"]'); 
+            const orig = btn.innerHTML;
+            btn.innerHTML = `Menyusun PDF...`; 
+            btn.disabled = true;
+            
+            const facName = document.getElementById('facility-name').value || "RUMAH SAKIT";
+            
+            let html = `
+                <div style="text-align:center; border-bottom:3px solid black; padding-bottom:10px; margin-bottom:20px;">
+                    <h1 style="font-size:16pt; font-weight:bold; margin:0; text-transform:uppercase;">${facName}</h1>
+                    <h2 style="font-size:12pt; font-weight:bold; margin:5px 0;">KOMITE PENGENDALIAN RESISTENSI ANTIMIKROBA (PPRA)</h2>
+                    <p style="font-size:10pt; font-style:italic; margin:0;">Laporan Audit Kualitas, Audit Kuantitas, dan Plan of Action</p>
+                </div>
+            `;
+            
+            html += `<h3 style="font-size:11pt; font-weight:bold;">1. AUDIT KUALITAS (GYSSENS)</h3>
+                     <table border="1" style="width:100%; border-collapse:collapse; font-size:9pt; margin-bottom:20px;">
+                        <tr style="background:#f0f0f0;">
+                            <th style="padding:6px; width:5%;">No</th>
+                            <th style="padding:6px; width:20%;">RM/Unit</th>
+                            <th style="padding:6px; width:30%;">Diagnosa</th>
+                            <th style="padding:6px; width:25%;">Antibiotik</th>
+                            <th style="padding:6px; width:20%;">Kategori Gyssens</th>
+                        </tr>`;
+            
+            if(kualitasRecords.length === 0) {
+                html += `<tr><td colspan="5" style="padding:10px; text-align:center;">Belum ada data audit kualitas.</td></tr>`;
+            } else {
+                kualitasRecords.forEach((r,i) => {
+                    html += `<tr>
+                        <td style="text-align:center; padding:6px;">${i+1}</td>
+                        <td style="padding:6px;">${r.rm}/${r.unit}</td>
+                        <td style="padding:6px;">${r.diag}</td>
+                        <td style="padding:6px;">${r.ab}</td>
+                        <td style="text-align:center; padding:6px; font-weight:bold;">${r.kategori}</td>
+                    </tr>`;
+                });
+            }
+            html += `</table>`;
+
+            html += `<h3 style="font-size:11pt; font-weight:bold;">2. AUDIT KUANTITAS (DDD)</h3>
+                     <table border="1" style="width:100%; border-collapse:collapse; font-size:9pt; margin-bottom:20px;">
+                        <tr style="background:#f0f0f0;">
+                            <th style="padding:6px; width:5%;">No</th>
+                            <th style="padding:6px; width:20%;">Periode/Unit</th>
+                            <th style="padding:6px; width:25%;">Antibiotik Target</th>
+                            <th style="padding:6px; width:30%;">Data Mentah</th>
+                            <th style="padding:6px; width:20%;">Nilai DDD</th>
+                        </tr>`;
+            
+            if(kuantitasRecords.length === 0) {
+                html += `<tr><td colspan="5" style="padding:10px; text-align:center;">Belum ada data audit kuantitas.</td></tr>`;
+            } else {
+                kuantitasRecords.forEach((r,i) => {
+                    html += `<tr>
+                        <td style="text-align:center; padding:6px;">${i+1}</td>
+                        <td style="padding:6px;">${r.bulan}/${r.unit}</td>
+                        <td style="padding:6px; font-weight:bold;">${r.ab}</td>
+                        <td style="padding:6px; font-size:8.5pt;">${r.ket}</td>
+                        <td style="text-align:center; font-weight:bold; padding:6px;">${r.hasil}</td>
+                    </tr>`;
+                });
+            }
+            html += `</table>`;
+
+            html += `<div class="html2pdf__page-break"></div>
+                     <h3 style="font-size:11pt; font-weight:bold;">3. PLAN OF ACTION (INTERVENSI)</h3>
+                     <table border="1" style="width:100%; border-collapse:collapse; font-size:9pt;">
+                        <tr style="background:#f0f0f0;">
+                            <th style="padding:6px; width:5%;">No</th>
+                            <th style="padding:6px; width:25%;">Masalah / Temuan Kasus</th>
+                            <th style="padding:6px; width:20%;">Intervensi</th>
+                            <th style="padding:6px; width:25%;">Detail Tindakan</th>
+                            <th style="padding:6px; width:15%;">Waktu & PIC</th>
+                            <th style="padding:6px; width:10%;">Status</th>
+                        </tr>`;
+            
+            const poaRows = document.querySelectorAll('#poa-table-body tr:not(#poa-empty)');
+            if (poaRows.length === 0) {
+                html += `<tr><td colspan="6" style="padding:10px; text-align:center;">Belum ada Plan of Action.</td></tr>`;
+            } else {
+                poaRows.forEach((tr, i) => {
+                    const cells = tr.querySelectorAll('td'); 
+                    if(cells.length < 6) return;
+                    const status = cells[5].querySelector('select').value;
+                    html += `<tr>
+                        <td style="text-align:center; padding:6px;">${i+1}</td>
+                        <td style="padding:6px; font-weight:bold;">${cells[0].innerText}</td>
+                        <td style="text-align:center; padding:6px;">${cells[1].innerText}</td>
+                        <td style="padding:6px; white-space:pre-wrap;">${cells[2].innerText}</td>
+                        <td style="text-align:center; padding:6px;">${cells[3].innerText}<br><span style="font-size:8pt;">(${cells[4].innerText})</span></td>
+                        <td style="text-align:center; padding:6px; font-weight:bold;">${status}</td>
+                    </tr>`;
+                });
+            }
+            html += `</table>`;
+
+            const opt = { 
+                margin:[10,10,10,10], 
+                filename:'Laporan_PPRA_RS.pdf', 
+                jsPDF:{unit:'mm', format:[330.2, 215.9], orientation:'landscape'},
+                pagebreak: { mode: ['css', 'legacy'] }
+            };
+            
+            const wrapper = document.createElement('div'); 
+            wrapper.innerHTML = html; 
+            wrapper.style.cssText = "font-family:'Times New Roman', Times, serif; color:#000; width:1050px; padding:10px;";
+            
+            html2pdf().set(opt).from(wrapper).save().then(() => { 
+                btn.innerHTML = orig; 
+                btn.disabled = false; 
+            }).catch(e => {
+                console.error(e);
+                alert('Gagal menyusun PDF');
+                btn.innerHTML = orig; 
+                btn.disabled = false; 
+            });
+        }
+
+        // BUKA TAB PERTAMA SAAT DIMUAT
+        window.onload = function() {
+            switchTab('penjelasan');
+        };
+    </script>
+</body>
+</html>
